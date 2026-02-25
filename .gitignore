@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+*.so
+
+pcmffi/_pcmffi.c
+
+*.o
+
+build/
+dist/
+
+.vscode/
+.idea/
+.DS_Store
