@@ -11,17 +11,7 @@ ffi.set_source(
 ffi.cdef("""\
         typedef enum
         {
-            PROCMAPS_MAP_FILE,
-            PROCMAPS_MAP_STACK,
-            PROCMAPS_MAP_STACK_TID,
-            PROCMAPS_MAP_VDSO,
-            PROCMAPS_MAP_VVAR,
-            PROCMAPS_MAP_VSYSCALL,
-            PROCMAPS_MAP_HEAP,
-            PROCMAPS_MAP_ANON_PRIV,
-            PROCMAPS_MAP_ANON_SHMEM,
-            PROCMAPS_MAP_ANON_MMAPS,
-            PROCMAPS_MAP_OTHER,
+            ...
         } procmaps_map_type;
 
         typedef struct procmaps_struct
@@ -47,10 +37,7 @@ ffi.cdef("""\
 
         typedef enum procmaps_error
         {
-            PROCMAPS_SUCCESS = 0,
-            PROCMAPS_ERROR_OPEN_MAPS_FILE,
-            PROCMAPS_ERROR_READ_MAPS_FILE,
-            PROCMAPS_ERROR_MALLOC_FAIL,
+            ...
         } procmaps_error_t;
 
         typedef struct procmaps_iterator
