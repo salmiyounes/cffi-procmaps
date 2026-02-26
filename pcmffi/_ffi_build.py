@@ -3,9 +3,10 @@ from cffi import FFI
 ffi = FFI()
 
 ffi.set_source(
-    'pcmffi._pcmffi', '#include "pmparser.h"',
+    "pcmffi._pcmffi",
+    '#include "pmparser.h"',
     include_dirs=["src"],
-    sources=["src/pmparser.c"]
+    sources=["src/pmparser.c"],
 )
 
 ffi.cdef("""\
