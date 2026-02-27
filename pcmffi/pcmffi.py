@@ -1,4 +1,4 @@
-from typing import TypeAlias, Optional, Iterator, List
+from typing import TypeAlias, Optional, Iterator, List, Any, Self
 from dataclasses import dataclass
 from .exceptions import (
     ProcMapsOpenFileError,
@@ -62,6 +62,18 @@ def byte_2_str(b: bytes) -> str:
     return b.decode("utf-8")
 
 
+def ffi_2_string(cdata: Any) -> bytes | str:
+    return ffi.string(cdata)
+
+
+def ffi_cast(cdecl: str, cdata: Any):
+    return ffi.cast(cdecl, cdata)
+
+
+def new_procmaps_iterator_struct():  # type: ignore
+    return ffi.new("struct procmaps_iterator *")
+
+
 def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
     while (mem_reg := lib.pmparser_next(procmaps_it)) != ffi.NULL:  # type: ignore
         offset: int
@@ -71,15 +83,15 @@ def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
         _type = mem_reg.map_type
         if _type == PROCMAPS_MAP_FILE:
             offset = mem_reg.offset
-            pathname = ffi.string(mem_reg.pathname)
+            pathname = ffi_2_string(mem_reg.pathname)
         elif _type == PROCMAPS_MAP_ANON_PRIV or _type == PROCMAPS_MAP_ANON_SHMEM:
-            anon_name = ffi.string(mem_reg.map_anon_name)
+            anon_name = ffi_2_string(mem_reg.map_anon_name)
         elif _type == PROCMAPS_MAP_OTHER:
-            pathname = ffi.string(mem_reg.pathname)
+            pathname = ffi_2_string(mem_reg.pathname)
 
         yield MemoryRegion(
-            start_addr=int(ffi.cast("uintptr_t", mem_reg.addr_start)),
-            end_addr=int(ffi.cast("uintptr_t", mem_reg.addr_end)),
+            start_addr=int(ffi_cast("uintptr_t", mem_reg.addr_start)),
+            end_addr=int(ffi_cast("uintptr_t", mem_reg.addr_end)),
             length=mem_reg.length,
             is_r=bool(mem_reg.is_r),
             is_w=bool(mem_reg.is_w),
@@ -140,7 +152,7 @@ class MemoryRegion:
 class ProcMaps:
     def __init__(self, pid: int = -1) -> None:
         self._pid: int = pid
-        self._it = ffi.new("struct procmaps_iterator *")
+        self._it = new_procmaps_iterator_struct()
         self._memory_regs: List["MemoryRegion"] = []
         err = self._initialize()
         if err != PROCMAPS_SUCCESS:
@@ -166,10 +178,6 @@ class ProcMaps:
     def _pointer(self):  # type: ignore
         return self._it
 
-    @pid.setter
-    def pid(self, new_pid: int) -> None:
-        self._pid = new_pid
-
     def push(self, item: object) -> None:
         if not isinstance(item, MemoryRegion):
             raise TypeError(f"Item is not of type {MemoryRegion.__name__}")
@@ -181,3 +189,7 @@ class ProcMaps:
             for m in proc_map_iterator(self._pointer):
                 self.push(m)
         return PROCMAPS_ERROR_T(err)
+
+    @classmethod
+    def from_pid(cls, pid: int) -> Self:
+        return cls(pid)
