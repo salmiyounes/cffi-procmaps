@@ -129,6 +129,45 @@ class MemoryRegion:
     def __len__(self):
         return self.end_addr - self.start_addr
 
+    def __str__(self) -> str:
+        builder: List[str] = []
+
+        # Address Range
+        addr_range = "0x%.12x-0x%.12x\t" % (
+            self.start_addr,
+            self.end_addr,
+        )
+        builder.append(addr_range)
+
+        # Permissions
+        perms = (
+            f"{'r' if self.is_readable() else '-'}"
+            f"{'w' if self.is_writable() else '-'}"
+            f"{'x' if self.is_executable() else '-'}"
+            f"{'p' if self.is_private() else 's'}"
+        )
+        builder.append(f"{perms} ")
+
+        # Lenght and Map Type
+        builder.append(f"{self.length}\n")
+        builder.append(f"{self.type}\t")
+
+        if self.map_type == PROCMAPS_MAP_FILE:
+            builder.append(f"Offset:{self.offset} {self.pathname}")
+
+        elif self.map_type in [PROCMAPS_MAP_ANON_PRIV, PROCMAPS_MAP_ANON_SHMEM]:
+            builder.append(f"{self.map_anon_name}")
+
+        elif self.map_type == PROCMAPS_MAP_OTHER:
+            builder.append(f"{self.pathname}")
+
+        # Inode and Device Info
+        builder.append(
+            f"\ninode :{self.inode}\ndevice:{self.dev_major}:{self.dev_minor}\n"
+        )
+
+        return "".join(builder)
+
     def is_readable(self) -> bool:
         return self.is_r
 
