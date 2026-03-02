@@ -1,4 +1,4 @@
-from typing import TypeAlias, Optional, Iterator, List, Any, Self
+from typing import TypeAlias, Optional, Iterator, List, Any, Self, Dict
 from dataclasses import dataclass
 from .exceptions import (
     ProcMapsOpenFileError,
@@ -42,28 +42,15 @@ proc_map_types: List[str] = [
     "other",
 ]
 
-
-def error(err: PROCMAPS_ERROR_T):
-    msg: str = {
-        1: "Failed to open the maps file (check /proc)",
-        2: "Failed to read from the maps file",
-        3: "Internal memory allocation (malloc) failed",
-    }[err]
-
-    if err == PROCMAPS_ERROR_OPEN_MAPS_FILE:
-        raise ProcMapsOpenFileError(msg)
-    elif err == PROCMAPS_ERROR_READ_MAPS_FILE:
-        raise ProcMapsReadFileError(msg)
-    elif err == PROCMAPS_ERROR_MALLOC_FAIL:
-        raise ProcMapsMemoryError(msg)
+proc_map_exception_msg: Dict[int, str] = {
+    PROCMAPS_ERROR_OPEN_MAPS_FILE: "Failed to open the maps file (check /proc)",
+    PROCMAPS_ERROR_READ_MAPS_FILE: "Failed to read from the maps file",
+    PROCMAPS_ERROR_MALLOC_FAIL: "Internal memory allocation (malloc) failed",
+}
 
 
-def byte_2_str(b: bytes) -> str:
-    return b.decode("utf-8")
-
-
-def ffi_2_string(cdata: Any) -> bytes | str:
-    return ffi.string(cdata)
+def ffi_2_string(cdata: Any) -> str:
+    return ffi.string(cdata).decode("utf-8")
 
 
 def ffi_cast(cdecl: str, cdata: Any):
@@ -75,19 +62,20 @@ def new_procmaps_iterator_struct():  # type: ignore
 
 
 def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
-    while (mem_reg := lib.pmparser_next(procmaps_it)) != ffi.NULL:  # type: ignore
-        offset: int
-        pathname: bytes = b""
-        anon_name: bytes = b""
-
-        _type = mem_reg.map_type
-        if _type == PROCMAPS_MAP_FILE:
-            offset = mem_reg.offset
-            pathname = ffi_2_string(mem_reg.pathname)
-        elif _type == PROCMAPS_MAP_ANON_PRIV or _type == PROCMAPS_MAP_ANON_SHMEM:
-            anon_name = ffi_2_string(mem_reg.map_anon_name)
-        elif _type == PROCMAPS_MAP_OTHER:
-            pathname = ffi_2_string(mem_reg.pathname)
+    next_map = getattr(lib, "pmparser_next")
+    while (mem_reg := next_map(procmaps_it)) != ffi.NULL:  # type: ignore
+        map_type: int = getattr(mem_reg, "map_type")
+        offset: int = getattr(mem_reg, "offset") if map_type == PROCMAPS_MAP_FILE else 0
+        pathname: str = (
+            ffi_2_string(getattr(mem_reg, "pathname"))
+            if map_type in [PROCMAPS_MAP_FILE, PROCMAPS_MAP_OTHER]
+            else ""
+        )
+        anon_name: str = (
+            ffi_2_string(getattr(mem_reg, "map_anon_name"))
+            if map_type in [PROCMAPS_MAP_ANON_PRIV, PROCMAPS_MAP_ANON_SHMEM]
+            else ""
+        )
 
         yield MemoryRegion(
             start_addr=int(ffi_cast("uintptr_t", mem_reg.addr_start)),
@@ -101,9 +89,9 @@ def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
             dev_major=mem_reg.dev_major,
             dev_minor=mem_reg.dev_minor,
             inode=mem_reg.inode,
-            pathname=byte_2_str(pathname),
+            pathname=pathname,
             map_type=mem_reg.map_type,
-            map_anon_name=byte_2_str(anon_name),
+            map_anon_name=anon_name,
             file_deleted=bool(mem_reg.file_deleted),
         )
 
@@ -128,6 +116,9 @@ class MemoryRegion:
 
     def __len__(self):
         return self.end_addr - self.start_addr
+
+    def __contains__(self, item: int) -> bool:
+        return item >= self.start_addr and item < self.end_addr
 
     def __str__(self) -> str:
         builder: List[str] = []
@@ -193,9 +184,7 @@ class ProcMaps:
         self._pid: int = pid
         self._it = new_procmaps_iterator_struct()
         self._memory_regs: List["MemoryRegion"] = []
-        err = self._initialize()
-        if err != PROCMAPS_SUCCESS:
-            error(err)
+        self._initialize()
 
     def __len__(self):
         return len(self._memory_regs)
@@ -207,7 +196,8 @@ class ProcMaps:
         return iter(self._memory_regs)
 
     def __del__(self) -> None:
-        lib.pmparser_free(self._pointer)
+        func = getattr(lib, "pmparser_free")
+        func(self._pointer)
 
     @property
     def pid(self) -> int:
@@ -222,12 +212,17 @@ class ProcMaps:
             raise TypeError(f"Item is not of type {MemoryRegion.__name__}")
         self._memory_regs.append(item)
 
-    def _initialize(self) -> PROCMAPS_ERROR_T:
+    def _initialize(self) -> None:
         err = lib.pmparser_parse(self.pid, self._pointer)
         if err == PROCMAPS_SUCCESS:
-            for m in proc_map_iterator(self._pointer):
-                self.push(m)
-        return PROCMAPS_ERROR_T(err)
+            for map in proc_map_iterator(self._pointer):
+                self.push(map)
+        elif err == PROCMAPS_ERROR_MALLOC_FAIL:
+            raise ProcMapsMemoryError(proc_map_exception_msg.get(err))
+        elif err == PROCMAPS_ERROR_OPEN_MAPS_FILE:
+            raise ProcMapsOpenFileError(proc_map_exception_msg.get(err))
+        elif err == PROCMAPS_ERROR_READ_MAPS_FILE:
+            raise ProcMapsReadFileError(proc_map_exception_msg.get(err))
 
     @classmethod
     def from_pid(cls, pid: int) -> Self:
