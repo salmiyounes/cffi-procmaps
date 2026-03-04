@@ -60,41 +60,10 @@ def ffi_cast(cdecl: str, cdata: Any):
 def new_procmaps_iterator_struct():  # type: ignore
     return ffi.new("struct procmaps_iterator *")
 
-
 def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
-    next_map = getattr(lib, "pmparser_next")
+    next_map: Any = getattr(lib, "pmparser_next")
     while (mem_reg := next_map(procmaps_it)) != ffi.NULL:  # type: ignore
-        map_type: int = getattr(mem_reg, "map_type")
-        offset: int = getattr(mem_reg, "offset") if map_type == PROCMAPS_MAP_FILE else 0
-        pathname: str = (
-            ffi_2_string(getattr(mem_reg, "pathname"))
-            if map_type in [PROCMAPS_MAP_FILE, PROCMAPS_MAP_OTHER]
-            else ""
-        )
-        anon_name: str = (
-            ffi_2_string(getattr(mem_reg, "map_anon_name"))
-            if map_type in [PROCMAPS_MAP_ANON_PRIV, PROCMAPS_MAP_ANON_SHMEM]
-            else ""
-        )
-
-        yield MemoryRegion(
-            start_addr=int(ffi_cast("uintptr_t", mem_reg.addr_start)),
-            end_addr=int(ffi_cast("uintptr_t", mem_reg.addr_end)),
-            length=mem_reg.length,
-            is_r=bool(mem_reg.is_r),
-            is_w=bool(mem_reg.is_w),
-            is_x=bool(mem_reg.is_x),
-            is_p=bool(mem_reg.is_p),
-            offset=offset,
-            dev_major=mem_reg.dev_major,
-            dev_minor=mem_reg.dev_minor,
-            inode=mem_reg.inode,
-            pathname=pathname,
-            map_type=mem_reg.map_type,
-            map_anon_name=anon_name,
-            file_deleted=bool(mem_reg.file_deleted),
-        )
-
+        yield MemoryRegion.from_procmaps_struct(mem_reg)
 
 @dataclass
 class MemoryRegion:
@@ -177,6 +146,44 @@ class MemoryRegion:
     @property
     def type(self) -> str:
         return proc_map_types[self.map_type]
+    
+    @classmethod
+    def from_str(cls, maps_data: str) -> Self:
+        ...
+
+    @classmethod
+    def from_procmaps_struct(cls, mem_reg: Any) -> Self: 
+        map_type: int = mem_reg.map_type
+        offset: int = mem_reg.offset if map_type == PROCMAPS_MAP_FILE else 0
+        pathname: str = (
+            ffi_2_string(mem_reg.pathname)
+            if map_type in [PROCMAPS_MAP_FILE, PROCMAPS_MAP_OTHER]
+            else ""
+        )
+        anon_name: str = (
+            ffi_2_string(mem_reg.map_anon_name)
+            if map_type in [PROCMAPS_MAP_ANON_PRIV, PROCMAPS_MAP_ANON_SHMEM]
+            else ""
+        )
+
+        return cls(
+            start_addr=int(ffi_cast("uintptr_t", mem_reg.addr_start)),
+            end_addr=int(ffi_cast("uintptr_t", mem_reg.addr_end)),
+            length=mem_reg.length,
+            is_r=bool(mem_reg.is_r),
+            is_w=bool(mem_reg.is_w),
+            is_x=bool(mem_reg.is_x),
+            is_p=bool(mem_reg.is_p),
+            offset=offset,
+            dev_major=mem_reg.dev_major,
+            dev_minor=mem_reg.dev_minor,
+            inode=mem_reg.inode,
+            pathname=pathname,
+            map_type=mem_reg.map_type,
+            map_anon_name=anon_name,
+            file_deleted=bool(mem_reg.file_deleted),
+        )
+
 
 
 class ProcMaps:
