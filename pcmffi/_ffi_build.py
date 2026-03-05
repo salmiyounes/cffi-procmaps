@@ -53,6 +53,8 @@ ffi.cdef("""\
         procmaps_struct *pmparser_next(procmaps_iterator *p_procmaps_it);
 
         void pmparser_free(procmaps_iterator *p_procmaps_it);
+         
+        void pmparser_parse_line(char *buf, procmaps_struct *mem_reg);
 """)
 
 if __name__ == "__main__":

@@ -24,12 +24,6 @@ implied warranty.
 #define PROCMAPS_LINE_TOKEN_MAX_LEN 100
 
 /**
- * pmparser_parse_line
- * @description internal usage
- */
-static void pmparser_parse_line(char *buf, procmaps_struct *mem_reg);
-
-/**
  * @brief Copy into dest_ptr the string from src_ptr to the first occurence of delimiter
  */
 static char *pmparser_helper_extract(char *src_ptr, const char *delimiter, char *dest_ptr);
@@ -171,7 +165,7 @@ static char *pmparser_helper_extract(char *src_ptr, const char *delimiter, char 
 	return p_separator;
 }
 
-static void pmparser_parse_line(char *buf, procmaps_struct *mem_reg)
+void pmparser_parse_line(char *buf, procmaps_struct *mem_reg)
 {
 	char token[PROCMAPS_LINE_TOKEN_MAX_LEN];
 	size_t pathname_len = 0;

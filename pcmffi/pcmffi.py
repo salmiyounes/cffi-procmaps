@@ -49,21 +49,25 @@ proc_map_exception_msg: Dict[int, str] = {
 }
 
 
-def ffi_2_string(cdata: Any) -> str:
-    return ffi.string(cdata).decode("utf-8")
+class utils:
+    @staticmethod
+    def ffi_2_string(cdata: Any) -> str:
+        return ffi.string(cdata).decode("utf-8")
 
+    @staticmethod
+    def ffi_cast(cdecl: str, cdata: Any):
+        return ffi.cast(cdecl, cdata)
 
-def ffi_cast(cdecl: str, cdata: Any):
-    return ffi.cast(cdecl, cdata)
+    @staticmethod
+    def new_procmaps_iterator_struct():  # type: ignore
+        return ffi.new("struct procmaps_iterator *")
 
+    @staticmethod
+    def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
+        next_map: Any = getattr(lib, "pmparser_next")
+        while (mem_reg := next_map(procmaps_it)) != ffi.NULL:  # type: ignore
+            yield MemoryRegion.from_procmaps_struct(mem_reg)
 
-def new_procmaps_iterator_struct():  # type: ignore
-    return ffi.new("struct procmaps_iterator *")
-
-def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
-    next_map: Any = getattr(lib, "pmparser_next")
-    while (mem_reg := next_map(procmaps_it)) != ffi.NULL:  # type: ignore
-        yield MemoryRegion.from_procmaps_struct(mem_reg)
 
 @dataclass
 class MemoryRegion:
@@ -146,29 +150,33 @@ class MemoryRegion:
     @property
     def type(self) -> str:
         return proc_map_types[self.map_type]
-    
-    @classmethod
-    def from_str(cls, maps_data: str) -> Self:
-        ...
 
     @classmethod
-    def from_procmaps_struct(cls, mem_reg: Any) -> Self: 
+    def from_str(cls, maps_data: str | bytes) -> Self:
+        if isinstance(maps_data, str):
+            maps_data = maps_data.encode()
+        dummy = ffi.new("struct procmaps_struct *")
+        lib.pmparser_parse_line(maps_data, dummy)
+        return cls.from_procmaps_struct(dummy)
+
+    @classmethod
+    def from_procmaps_struct(cls, mem_reg: Any) -> Self:
         map_type: int = mem_reg.map_type
         offset: int = mem_reg.offset if map_type == PROCMAPS_MAP_FILE else 0
         pathname: str = (
-            ffi_2_string(mem_reg.pathname)
+            utils.ffi_2_string(mem_reg.pathname)
             if map_type in [PROCMAPS_MAP_FILE, PROCMAPS_MAP_OTHER]
             else ""
         )
         anon_name: str = (
-            ffi_2_string(mem_reg.map_anon_name)
+            utils.ffi_2_string(mem_reg.map_anon_name)
             if map_type in [PROCMAPS_MAP_ANON_PRIV, PROCMAPS_MAP_ANON_SHMEM]
             else ""
         )
 
         return cls(
-            start_addr=int(ffi_cast("uintptr_t", mem_reg.addr_start)),
-            end_addr=int(ffi_cast("uintptr_t", mem_reg.addr_end)),
+            start_addr=int(utils.ffi_cast("uintptr_t", mem_reg.addr_start)),
+            end_addr=int(utils.ffi_cast("uintptr_t", mem_reg.addr_end)),
             length=mem_reg.length,
             is_r=bool(mem_reg.is_r),
             is_w=bool(mem_reg.is_w),
@@ -185,11 +193,10 @@ class MemoryRegion:
         )
 
 
-
 class ProcMaps:
     def __init__(self, pid: int = -1) -> None:
         self._pid: int = pid
-        self._it = new_procmaps_iterator_struct()
+        self._it = utils.new_procmaps_iterator_struct()
         self._memory_regs: List["MemoryRegion"] = []
         self._initialize()
 
@@ -222,7 +229,7 @@ class ProcMaps:
     def _initialize(self) -> None:
         err = lib.pmparser_parse(self.pid, self._pointer)
         if err == PROCMAPS_SUCCESS:
-            for map in proc_map_iterator(self._pointer):
+            for map in utils.proc_map_iterator(self._pointer):
                 self.push(map)
         elif err == PROCMAPS_ERROR_MALLOC_FAIL:
             raise ProcMapsMemoryError(proc_map_exception_msg.get(err))
