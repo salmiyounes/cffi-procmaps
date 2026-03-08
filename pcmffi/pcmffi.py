@@ -49,6 +49,12 @@ proc_map_exception_msg: Dict[int, str] = {
     PROCMAPS_ERROR_MALLOC_FAIL: "Internal memory allocation (malloc) failed",
 }
 
+error_mapping: Dict[int, Any] = {
+    PROCMAPS_ERROR_MALLOC_FAIL: ProcMapsMemoryError,
+    PROCMAPS_ERROR_OPEN_MAPS_FILE: ProcMapsOpenFileError,
+    PROCMAPS_ERROR_READ_MAPS_FILE: ProcMapsReadFileError,
+}
+
 
 def ffi_2_string(cdata: Any) -> str:
     return to_str(ffi.string(cdata))
@@ -230,12 +236,11 @@ class ProcMaps:
         if err == PROCMAPS_SUCCESS:
             for map in proc_map_iterator(self._pointer):
                 self.push(map)
-        elif err == PROCMAPS_ERROR_MALLOC_FAIL:
-            raise ProcMapsMemoryError(proc_map_exception_msg.get(err))
-        elif err == PROCMAPS_ERROR_OPEN_MAPS_FILE:
-            raise ProcMapsOpenFileError(proc_map_exception_msg.get(err))
-        elif err == PROCMAPS_ERROR_READ_MAPS_FILE:
-            raise ProcMapsReadFileError(proc_map_exception_msg.get(err))
+            return
+
+        exception_cls = error_mapping.get(err)
+        if exception_cls:
+            raise exception_cls(proc_map_exception_msg.get(err))
 
     @classmethod
     def from_pid(cls, pid: int) -> Self:

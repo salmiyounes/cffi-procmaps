@@ -9,5 +9,9 @@ class lib:
     @staticmethod
     def pmparser_free(it: Any) -> None:
         ...
+    
+    @staticmethod
+    def pmparser_parse_line(buf: bytes, mem_reg: Any) -> None:
+        ...
 
 ffi: FFI
