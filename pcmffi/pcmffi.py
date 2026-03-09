@@ -202,40 +202,27 @@ class ProcMaps:
     def __init__(self, pid: int = -1) -> None:
         self._pid: int = pid
         self._it = new_procmaps_iterator_struct()
-        self._memory_regs: List["MemoryRegion"] = []
         self._initialize()
-
-    def __len__(self):
-        return len(self._memory_regs)
-
-    def __getitem__(self, key: int) -> "MemoryRegion":
-        return self._memory_regs[key]
-
-    def __iter__(self):
-        return iter(self._memory_regs)
 
     def __del__(self) -> None:
         func = getattr(lib, "pmparser_free")
-        func(self._pointer)
+        func(self.pointer)
+
+    @property
+    def maps(self) -> "ProcMapsGenerator":
+        return ProcMapsGenerator(self)
 
     @property
     def pid(self) -> int:
         return self._pid
 
     @property
-    def _pointer(self):  # type: ignore
+    def pointer(self):  # type: ignore
         return self._it
 
-    def push(self, item: object) -> None:
-        if not isinstance(item, MemoryRegion):
-            raise TypeError(f"Item is not of type {MemoryRegion.__name__}")
-        self._memory_regs.append(item)
-
     def _initialize(self) -> None:
-        err = lib.pmparser_parse(self.pid, self._pointer)
+        err = lib.pmparser_parse(self.pid, self.pointer)
         if err == PROCMAPS_SUCCESS:
-            for map in proc_map_iterator(self._pointer):
-                self.push(map)
             return
 
         exception_cls = error_mapping.get(err)
@@ -245,3 +232,11 @@ class ProcMaps:
     @classmethod
     def from_pid(cls, pid: int) -> Self:
         return cls(pid)
+
+
+class ProcMapsGenerator:
+    def __init__(self, procmaps: ProcMaps) -> None:
+        self.procmaps = procmaps
+
+    def __iter__(self) -> Iterator[MemoryRegion]:
+        return proc_map_iterator(self.procmaps.pointer)
