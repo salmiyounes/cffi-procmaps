@@ -205,8 +205,13 @@ class ProcMaps:
         self._initialize()
 
     def __del__(self) -> None:
-        func = getattr(lib, "pmparser_free")
-        func(self.pointer)
+        lib.pmparser_free(self.pointer)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        lib.pmparser_free(self.pointer)
 
     @property
     def maps(self) -> "ProcMapsGenerator":
