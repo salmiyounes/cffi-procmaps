@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import unittest
+from textwrap import dedent
 from pcmffi import MemoryRegion, ProcMaps
 
 
@@ -30,6 +31,21 @@ class TestProcMaps(unittest.TestCase):
         self.assertIsInstance(map_.inode, int)
 
         self.assertTrue(isinstance(map_.pathname, str) or map_.pathname is None)
+
+    def test_str(self):
+        map_ = MemoryRegion.from_str(
+            "55d5564b4000-55d5564b6000 r--p 00000000 08:11 6553896 /bin/cat"
+        )
+
+        self.assertEqual(
+            str(map_),
+            dedent("""\
+                                           0x55d5564b4000-0x55d5564b6000\tr--p 8192
+                                           file\tOffset:0 /bin/cat
+                                           inode :6553896
+                                           device:8:11
+                                           """),
+        )
 
     def test_from_str(self):
         maps = MemoryRegion.from_str(
