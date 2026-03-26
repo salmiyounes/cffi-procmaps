@@ -205,12 +205,14 @@ class ProcMaps:
         self._initialize()
 
     def __del__(self) -> None:
+        if self.pointer == ffi.NULL:
+            return
         lib.pmparser_free(self.pointer)
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, exc_type, exc, tb) -> None:
         lib.pmparser_free(self.pointer)
 
     @property
