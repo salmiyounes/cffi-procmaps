@@ -64,10 +64,6 @@ def ffi_cast(cdecl: str, cdata: Any):
     return ffi.cast(cdecl, cdata)
 
 
-def new_procmaps_iterator_struct():  # type: ignore
-    return ffi.new("struct procmaps_iterator *")
-
-
 def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
     next_map: Any = getattr(lib, "pmparser_next")
     while (mem_reg := next_map(procmaps_it)) != ffi.NULL:  # type: ignore
@@ -201,7 +197,7 @@ class MemoryRegion:
 class ProcMaps:
     def __init__(self, pid: int = -1) -> None:
         self._pid: int = pid
-        self._it = new_procmaps_iterator_struct()
+        self._it = ffi.new("struct procmaps_iterator *")
         self._initialize()
 
     def __del__(self) -> None:
