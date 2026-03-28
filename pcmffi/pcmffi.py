@@ -63,6 +63,11 @@ def ffi_2_string(cdata: Any) -> str:
 def ffi_cast(cdecl: str, cdata: Any):
     return ffi.cast(cdecl, cdata)
 
+def error_map_excpetion(err: int) -> Any:
+    return error_mapping.get(err)
+
+def error_to_str(err: int) -> str | None:
+    return proc_map_exception_msg.get(err)
 
 def proc_map_iterator(procmaps_it) -> Iterator["MemoryRegion"]:  # type: ignore
     next_map: Any = getattr(lib, "pmparser_next")
@@ -228,9 +233,9 @@ class ProcMaps:
         if err == PROCMAPS_SUCCESS:
             return
 
-        exception_cls = error_mapping.get(err)
+        exception_cls = error_map_excpetion(err)
         if exception_cls:
-            raise exception_cls(proc_map_exception_msg.get(err))
+            raise exception_cls(error_to_str(err))
 
     @classmethod
     def from_pid(cls, pid: int) -> Self:
