@@ -55,7 +55,7 @@ class TestProcMaps(unittest.TestCase):
 
     def test_from_pid(self):
         with ProcMaps.from_pid(os.getpid()) as maps:
-            for map_ in maps.maps:
+            for map_ in maps:
                 self.check_map_properties(map_)
 
 
