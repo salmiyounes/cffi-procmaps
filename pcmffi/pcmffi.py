@@ -208,20 +208,14 @@ class ProcMaps:
         self._it = ffi.new("struct procmaps_iterator *")
         self._initialize()
 
-    def __del__(self) -> None:
-        if self.pointer == ffi.NULL:
-            return
-        lib.pmparser_free(self.pointer)
-
     def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        lib.pmparser_free(self.pointer)
+        self.__free_pmparser()
 
-    @property
-    def maps(self) -> "ProcMapsGenerator":
-        return ProcMapsGenerator(self)
+    def __iter__(self) -> Iterator["MemoryRegion"]:
+        return proc_map_iterator(self.pointer)
 
     @property
     def pid(self) -> int:
@@ -239,15 +233,12 @@ class ProcMaps:
         exception_cls = error_map_excpetion(err)
         if exception_cls:
             raise exception_cls(error_to_str(err))
+    
+    def __free_pmparser(self) -> None:
+        if self.pointer == ffi.NULL:
+            return 
+        lib.pmparser_free(self.pointer)
 
     @classmethod
     def from_pid(cls, pid: int) -> Self:
         return cls(pid)
-
-
-class ProcMapsGenerator:
-    def __init__(self, procmaps: ProcMaps) -> None:
-        self.procmaps = procmaps
-
-    def __iter__(self) -> Iterator[MemoryRegion]:
-        return proc_map_iterator(self.procmaps.pointer)
