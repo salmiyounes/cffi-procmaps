@@ -1,7 +1,8 @@
 from setuptools import setup
 
-setup(
-    name="pcmffi",
-    version="0.1",
-    cffi_modules=["pcmffi/_ffi_build.py:ffibuilder"],
-)
+
+
+if __name__ == "__main__":
+    setup(
+        cffi_modules=["pcmffi/_ffi_build.py:ffi"]
+    )

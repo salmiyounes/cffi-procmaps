@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=82.0", "cffi >= 2.0.0"]
+
+[project]
+name = "pcmffi"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.12.3"
+license = "MIT"
+
+[project.urls]
+Homepage = "https://github.com/salmiyounes/cffi-procmaps"
+
+[tool.setuptools]
+packages = ["pcmffi"]
