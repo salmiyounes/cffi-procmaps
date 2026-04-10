@@ -16,3 +16,15 @@ jobs:
           python-version: '3.12'
       - run: pip install nox
       - run: nox
+  typing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install -e .
+      - run: pip install mypy
+      - run: python -m mypy --strict pcmffi
+      - run: pip install pyright
+      - run: python -m pyright pcmffi
