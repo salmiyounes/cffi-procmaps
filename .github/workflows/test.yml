@@ -24,6 +24,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -e .
+      - run: python -m pip install types-cffi
       - run: pip install mypy
       - run: python -m mypy --strict pcmffi
       - run: pip install pyright
