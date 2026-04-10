@@ -60,7 +60,7 @@ def ffi_2_string(cdata: Any) -> str:
     return to_str(ffi.string(cdata))
 
 
-def ffi_cast(cdecl: str, cdata: Any):
+def ffi_cast(cdecl: str, cdata: Any) -> Any:
     return ffi.cast(cdecl, cdata)
 
 
@@ -96,7 +96,7 @@ class MemoryRegion:
     map_anon_name: Optional[str]  # char map_anon_name[]
     file_deleted: bool  # short file_deleted
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.end_addr - self.start_addr
 
     def __contains__(self, item: int) -> bool:
@@ -211,7 +211,7 @@ class ProcMaps:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(self, exc_type, exc, tb) -> None:  # type: ignore
         self.__free_pmparser()
 
     def __iter__(self) -> Iterator["MemoryRegion"]:
@@ -233,10 +233,10 @@ class ProcMaps:
         exception_cls = error_map_excpetion(err)
         if exception_cls:
             raise exception_cls(error_to_str(err))
-    
+
     def __free_pmparser(self) -> None:
         if self.pointer == ffi.NULL:
-            return 
+            return
         lib.pmparser_free(self.pointer)
 
     @classmethod

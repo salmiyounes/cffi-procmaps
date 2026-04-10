@@ -23,7 +23,7 @@ def main(argv: List[str]) -> None:
 
     if args.pid:
         with ProcMaps(args.pid) as maps:
-            for map_ in maps.maps:
+            for map_ in maps:
                 print(map_)
 
 
