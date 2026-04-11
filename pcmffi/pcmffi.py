@@ -1,4 +1,6 @@
-from typing import TypeAlias, Optional, Iterator, List, Any, Self, Dict
+from __future__ import annotations
+
+from typing import TypeAlias, Optional, Iterator, List, Any, Self, Dict, TYPE_CHECKING
 from dataclasses import dataclass
 from .exceptions import (
     ProcMapsOpenFileError,
@@ -7,6 +9,9 @@ from .exceptions import (
 )
 from .utils import to_bytes, to_str
 from ._pcmffi import ffi, lib
+
+if TYPE_CHECKING:
+    from ._pcmffi import CData
 
 PROCMAPS_ERROR_T: TypeAlias = int
 
@@ -56,11 +61,11 @@ error_mapping: Dict[int, Any] = {
 }
 
 
-def ffi_2_string(cdata: Any) -> str:
+def ffi_2_string(cdata: CData) -> str:
     return to_str(ffi.string(cdata))
 
 
-def ffi_cast(cdecl: str, cdata: Any) -> Any:
+def ffi_cast(cdecl: str, cdata: CData) -> CData:
     return ffi.cast(cdecl, cdata)
 
 
@@ -72,7 +77,7 @@ def error_to_str(err: int) -> str | None:
     return proc_map_exception_msg.get(err)
 
 
-def proc_map_iterator(procmaps_it: Any) -> Iterator["MemoryRegion"]:
+def proc_map_iterator(procmaps_it: CData) -> Iterator["MemoryRegion"]:
     next_map = lib.pmparser_next
     while (mem_reg := next_map(procmaps_it)) != ffi.NULL:
         yield MemoryRegion.from_procmaps_struct(mem_reg)
@@ -169,7 +174,7 @@ class MemoryRegion:
         return cls.from_procmaps_struct(dummy)
 
     @classmethod
-    def from_procmaps_struct(cls, mem_reg: Any) -> Self:
+    def from_procmaps_struct(cls, mem_reg: CData) -> Self:
         map_type: int = mem_reg.map_type
         offset: int = mem_reg.offset if map_type == PROCMAPS_MAP_FILE else 0
         pathname: str = (
