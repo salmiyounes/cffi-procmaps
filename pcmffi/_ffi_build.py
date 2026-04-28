@@ -4,9 +4,11 @@ ffi = FFI()
 
 ffi.set_source(
     "pcmffi._pcmffi",
-    '#include "pmparser.h"',
-    include_dirs=["src"],
-    sources=["src/pmparser.c"],
+    """
+    #include "pmparser.h"
+""",
+    include_dirs=["pcmffi/src"],
+    sources=["pcmffi/src/pmparser.c"],
 )
 
 ffi.cdef("""\
